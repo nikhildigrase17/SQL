@@ -1,49 +1,5 @@
 USE DATABASE DEMO_DATABASE;
 
-
-create or replace table like_ex(subject varchar(20));
-insert into like_ex values
-    ('John  Dddoe'),
-    ('Joe   Doe'),
-    ('John_down'),
-    ('Joe down'),
-    ('Elaine'),
-    (''),    -- empty string
-    (null);
-
-select subject
-    from like_ex
-    where subject like '%Jo%oe%'
-    order by subject;
-
---LIKE ANY
--- Allows case-sensitive matching of strings based on comparison with one or more patterns.
---The operation is similar to LIKE. If the input string matches any of the patterns, this returns the input string.
-
---<subject> LIKE ANY (<pattern1> [, <pattern2> ... ] ) [ ESCAPE <escape_char> ]
-
-create or replace table like_example(subject varchar(20));
-insert into like_example values
-    ('John  Dddoe'),
-    ('Joe   Doe'),
-    ('John_down'),
-    ('Joe down'),
-    ('Tom   Doe'),
-    ('Tim down'),
-    (null);
-    
-select * from like_example;    
-
-select * from like_example 
-where subject like any ('%Jo%oe%','T%e')
-order by subject;
-
-select * from like_example 
-where subject like any ('%J%h%^_do%', 'T%^%e') escape '^'
-order by subject;
-  
-USE DATABASE DEMO_DATABASE;
-
 create or replace table strings (v varchar(50));
 insert into strings (v) values
     ('San Francisco'),
@@ -53,50 +9,104 @@ insert into strings (v) values
     
 --Use wildcards to search for a pattern:
 select v from strings
-where v regexp 'San* [fF].*'
+where v regexp 'San* [fF].*' -- San followed by zero or more occurances then small or capital f followed by zero or more occurances
 order by v;    
 
+INSERT INTO strings (v)
+VALUES
+    ('Contains embedded single \\backslash');
 
-SELECT  TRIM(REGEXP_REPLACE(string, '[^[:digit:]]', ' ')) AS Numeric_value
-FROM (SELECT ' Area code for employee ID 112244 is 12345.' AS string) a;
+    
+SELECT * 
+    FROM strings
+    ORDER BY v;
 
-CREATE TABLE demo3 (id INT, string1 VARCHAR);
-INSERT INTO demo3 (id, string1) VALUES
-    (5, 'A MAN A PLAN A CANAL')
-    ;
-    SELECT * FROM DEMO3;
-select id, 
-    regexp_substr(string1, 'A\\W+(\\w+)', 1, 1, 'e', 1) as "RESULT1",
-    regexp_substr(string1, 'A\\W+(\\w+)', 1, 2, 'e', 1) as "RESULT2",
-    regexp_substr(string1, 'A\\W+(\\w+)', 1, 3, 'e', 1) as "RESULT3",
-    regexp_substr(string1, 'A\\W+(\\w+)', 1, 4, 'e', 1) as "RESULT4"
-    from demo3;
+--This example shows how to search for strings that start with “San”, where “San” is a complete word (e.g. not part of “Santa”). \b is the escape sequence for a word boundary.
 
+SELECT v, v regexp 'San\\b.*' AS MATCHES
+    FROM strings
+    ORDER BY v;
 
-/* Snowflake Regular Expression Functions
-The regular expression functions are string functions that match a given regular expression. These functions are commonly called as a ‘regex’ functions.
+--This example shows how to search for a blank followed by a backslash. Note that the single backslash to search for is represented by four backslashes below; for REGEXP to look for a literal backslash, that backslash must be escaped, so you need two backslashes. The string parser requires that each of those backslashes be escaped, so the expression contains four backslashes to represent the one backslash that the expression is searching for:
 
-Below are some of the regular expression function that Snowflake cloud data warehouse supports:
+SELECT v, v regexp '.*\\s\\\\.*' AS MATCHES
+    FROM strings 
+    ORDER BY v;
 
-REGEXP_COUNT
-REGEXP_INSTR
-REGEXP_LIKE
-REGEXP_SUBSTR
-REGEXP_REPLACE
-REGEXP
-RLIKE */
+-- The following example is the same as the preceding example, except that it uses $$ as a string delimiter to tell the string parser that the string is a literal and that backslashes should not be interpreted as escape sequences. (The backslashes are still interpreted as escape sequences by REGEXP.)
 
-/* Snowflake REGEXP_COUNT Function
-The REGEXP_COUNT function searches a string and returns an integer that indicates the number of 
-times the pattern occurs in the string. If no match is found, then the function returns 0.
+SELECT v, v regexp $$.*\s\\.*$$ AS MATCHES
+    FROM strings
+    ORDER BY v;
 
-syntax : REGEXP_COUNT( <string> , <pattern> [ , <position> , <parameters> ] ) */ 
-select regexp_count('qqqabcrtrababcbcd', 'abc');
-select regexp_count('qqqabcrtrababcbcd', '[abc]') as abc_character_count;
-select REGEXP_COUNT('QQQABCRTRABABCBCD', '[ABC]{3}');
-
+----------------------------------------------------------------------------------------------
 
 /*
+
+--REGEXP_COUNT->Returns the number of times that a pattern occurs in a string.
+
+The REGEXP_COUNT function searches a string and returns an integer that indicates the number of 
+ times the pattern occurs in the string. If no match is found, then the function returns 0.
+
+Patterns also support the following Perl backslash-sequences:
+
+\d: decimal digit (0-9).
+
+\D: not a decimal digit.
+
+\s: whitespace character.
+
+\S: not a whitespace character.
+
+\w: “word” character (a-z, A-Z, underscore (“_”), or decimal digit).
+
+\W: not a word character.
+
+\b: word boundary.
+
+\B: not a word boundary.
+*/
+
+--The following example counts occurrences of the word was. Matching begins at the 1st character in the string:
+
+select regexp_count('It was the best of times, it was the worst of times', '\\bwas\\b', 1) as "result" from dual;
+
+select regexp_count('It was the best of times, it was the worst of times', '\\bof\\b', 1) as "result" from dual;
+
+select regexp_count('It was the best of times, it was the worst of times', '\\bit|It\\b', 1) as "result" from dual;
+
+select regexp_count('It was the best of times, it was the worst of times', '\\bit\\b', 1,'i') as "result" from dual;--another way by given 'i' as case insensitive
+
+--syntax : REGEXP_COUNT( <string> , <pattern> [ , <position> , <parameters> ] )  
+
+select regexp_count('qqqabcrtrababcbcd', 'abc'); --count whole abc in string
+select regexp_count('qqqabcrtrababcbcd', '[abc]') as abc_character_count; -- count abc as individual alphabet
+select regexp_count('qqqabcrtrababcbcd', '[bac]') as abc_character_count; -- count abc as individual alphabet
+select REGEXP_COUNT('QQQABCRTRABABCBCD', '[ABC]{3}');
+select REGEXP_COUNT('QQQABCRTRABABCBCD', '[CAB]{3}');
+select REGEXP_COUNT('QQQABCRTRABABCBCD', '[ABC]{4}');--ONLY B IS 4
+select REGEXP_COUNT('QQQABCRTRABABCBCD', '[Q]{1}');
+select REGEXP_COUNT('QQQABCRTRABABCBCD', '[Q]{2}');
+select REGEXP_COUNT('QQQABCRTRABABCBCD', '[Q]{3}');
+
+--The following example illustrates overlapping occurrences:
+
+create or replace table overlap (id number, text string);
+insert into overlap values (1,',abc,def,ghi,jkl,');--first and last ccomma counted
+insert into overlap values (2,',abc,,def,,ghi,,jkl,');-- first and last counted+ 2 comma counted in between, it doesnt matter how much commas in between it will count only as 2
+insert into overlap values (3,',abc,,def,,ghi,jkl,');
+insert into overlap values (4,',abc,,def,ghi,jkl,');
+insert into overlap values (5,',abc,,def,,ghi,,jkl');
+insert into overlap values (6,'abc,,def,,ghi,,jkl');
+insert into overlap values (7,'abc,,def,,ghi,,jkl,,mno,');
+
+select * from overlap;
+
+--the count of first punctuation+the count of other punctuation+alphabet is given result
+select id, regexp_count(text,'[[:punct:]][[:alnum:]]+[[:punct:]]', 1, 'i') from overlap;
+
+/*
+REGEXP_REPLACE->
 The Snowflake REGEXP_REPLACE function returns the string by replacing specified pattern. 
 If no matches found, original string will be returned.
 
@@ -109,157 +119,219 @@ The REGEXP_REPLACE function is one of the easiest functions to get the required 
 Consider the below example to replace all characters except the date value. */
 
 --For example, consider following query to return only user name.
-select regexp_replace( 'anandjha2309@gmail.com', '@.*\\.(com)');
 
-select regexp_replace('Customers - (NY)','\\(|\\)','') as customers;
+select regexp_replace( 'anandjha2309@gmail.com', '@.*\\.(com)'); --remove all the data after @
+
+select regexp_replace( 'anandjha_2309@gmail.com', '@.*\\.(com)');
+
+select regexp_replace( 'anandjha_2309@gmail.com', '@.*');--another way
+
+select regexp_replace( 'anandjha_2309@gmail.co.in', '@.*\\.(co).(in)');
+
+select regexp_replace( 'anandjha_2309@gmail.co.in', '@.*');--another way
+
+select regexp_replace('Customers - (NY)','\\(|\\)','') as customers;--| is OR space and bracket
 
 SELECT TRIM(REGEXP_REPLACE(string, '[a-z/-/A-Z/.]', ''))
 AS date_value 
 FROM (SELECT 'My DOB is 04-12-1976.' AS string) a;
 
-/* 2. Extract date using REGEXP_SUBSTR 
-Alternatively, REGEXP_SUBSTR function can be used to get date field from the string data. 
+--The following example replaces all spaces in the string with nothing (i.e. all spaces are removed):
 
-For example, consider the below example to get date value from a string containing text and the date. */
-SELECT REGEXP_SUBSTR('I am celebrating my birthday on 05/12/2020 this year','[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]') as dob;
+select regexp_replace('It was the best of times, it was the worst of times', '( ){1,}','') as "result" from dual;
 
--- 3. Validate if date is in a valid format using REGEXP_LIKE function
-SELECT * FROM (SELECT '04-12-1976' AS string) a where REGEXP_LIKE(string,'\\d{1,2}\\-\\d{1,2}-\\d{4,4}');
+--The following example matches the string times and replaces it with the string days. Matching begins at the 1st character in the string and replaces the second occurrence of the substring:
 
---4. String pattern matching using REGEXP_LIKE
-WITH tbl
-  AS (select t.column1 mycol 
-      from values('A1 something'),('B1 something'),('Should not be matched'),('C1 should be matched') t )
+select regexp_replace('It was the best of times, it was the worst of times', 'times','days',1,2) as "result" from dual;
 
-SELECT * FROM tbl WHERE regexp_like (mycol,'[a-zA-z]\\d{1,}[\\s0-9a-zA-Z]*');
+--The following example uses backreferences to rearrange the string firstname middlename lastname as lastname, firstname middlename and insert a comma between lastname and firstname:
 
+select regexp_replace('firstname middlename lastname','(.*) (.*) (.*)','\\3, \\1 \\2') as "name sort" from dual;
 
-/*
--- Snowflake REGEXP Function
-The Snowflake REGEXP function is an alias for RLIKE.
-
-Following is the syntax of the REGEXP function.
-
--- 1st syntax
-REGEXP( <string> , <pattern> [ , <parameters> ] )
-
--- 2nd syntax
-<string> REGEXP <pattern> */
-
---For example, consider following query to matches string with query.
-SELECT city REGEXP 'M.*' 
-FROM   ( 
-              SELECT 'Bangalore' AS city 
-              UNION ALL 
-              SELECT 'Mangalore' AS city ) AS tmp;
-
-/*
-Snowflake RLIKE Function
-The Snowflake RLIKE function is an alias for REGEXP and regexp_like.
-
-Following is the syntax of the RLIKE function.
-
--- 1st syntax
-RLIKE( <string> , <pattern> [ , <parameters> ] )
-
--- 2nd syntax
-<string> RLIKE <pattern>
-*/
-
---For example, consider following query to matches string with query.
-SELECT city RLIKE 'M.*'
-FROM   ( 
-              SELECT 'Bangalore' AS city 
-              UNION ALL 
-              SELECT 'Mangalore' AS city ) AS tmp;
-
-
-
-/* Snowflake Extract Numbers from the string examples
-The regular expression functions come handy when you want to extract numerical values from the string data. 
-Though you can use built-in functions to check if a string is numeric. 
-But, getting particular numeric values is done easily using regular expressions.
-
-For example, extract the number from the string using Snowflake regexp_replace regular expression Function. */
+select regexp_replace('firstname middlename lastname','(.*) (.*) (.*)','\\3, \\2 \\1') as "name sort" from dual;
 
 SELECT  TRIM(REGEXP_REPLACE(string, '[^[:digit:]]', ' ')) AS Numeric_value
 FROM (SELECT ' Area code for employee ID 112244 is 12345.' AS string) a;
 
---For example, consider below query that uses different regex patterns.
-
-SELECT  TRIM(REGEXP_REPLACE(string, '[a-z/-/A-z/./#/*]', '')) AS Numeric_value
+SELECT  TRIM(REGEXP_REPLACE(string, '[^[:alpha:]]', ' ')) AS String_value
 FROM (SELECT ' Area code for employee ID 112244 is 12345.' AS string) a;
 
+----------------------------------------------------------------------------------------------------
 
-/* The most common requirement in the data warehouse environment is to extract certain digits from the string.
-For example, extract the 6 digit number from string data. 
+/*
+REGEXP_LIKE->
 
-There are many methods that you can use, however, the easiest method is to use the 
-Snowflake REGEXP_SUBSTR regular expressions for this requirement. 
+Performs a comparison to determine whether a string matches a specified pattern. Both inputs must be text expressions.
 
-You can modify the regular expression pattern to extract any number of digits based on your requirements. */
+REGEXP_LIKE is similar to the [ NOT ] LIKE function, but with POSIX extended regular expressions instead of SQL LIKE pattern syntax. It supports more complex matching conditions than LIKE.
 
---Snowflake Extract 6 digit’s numbers from string value examples
-SELECT REGEXP_SUBSTR(string, '(^|[^[:word:]]|[[:space:]])\\d{6}([^[:word:]]|[[:space:]]|$)') AS ID
-FROM (SELECT ' Area code for employee ID 112244 is 12345.' AS string) a;
+The function implicitly anchors a pattern at both ends (i.e. '' automatically becomes '^$', and 'ABC' automatically becomes '^ABC$'). To match any string starting with ABC, the pattern would be 'ABC.*'.
+*/
 
--- Another common requirement is to extract alphanumeric values from a string data.
--- Snowflake Extract Alphanumeric from the string examples
--- For example, consider below example to extract ID which is a combination of ‘ID’ and numeric value.
+CREATE OR REPLACE TABLE cities(city varchar(20));
+INSERT INTO cities VALUES
+    ('Sacramento'),
+    ('San Francisco'),
+    ('San Jose'),
+    (null);
 
-SELECT REGEXP_SUBSTR('abc jjs Updates ID 123 ID_112233','ID_[0-9][0-9][0-9][0-9][0-9][0-9]') as ID;
+SELECT * FROM cities;
 
---01PI10EC014 1pi10eC014
+--Execute a case-sensitive query with a wildcard:
+
+SELECT * FROM cities WHERE REGEXP_LIKE(city, 'san.*');
+
+--Execute a case-insensitive query with a wildcard:
+
+SELECT * FROM cities WHERE REGEXP_LIKE(city, 'san.*', 'i');
+
+-- String pattern matching using REGEXP_LIKE
+WITH tbl
+  AS (select t.column1 mycol 
+      from values('A1 something'),('B1 something'),('Should not be matched'),('C1 should be matched') t )
+
+SELECT * FROM tbl WHERE regexp_like (mycol,'[a-zA-z]\\d{1,}[\\s0-9a-zA-Z]*');--second word start with small s
+
+/*
+REGEXP_INSTR->
+Returns the position of the specified occurrence of the regular expression pattern in the string subject. If no match is found, returns 0.
+
+String of one or more characters that specifies the regular expression parameters used for searching for matches. The supported values are:
+
+c: case-sensitive.
+
+i: case-insensitive.
+
+m: multi-line mode.
+
+e: extract sub-matches.
+
+s: the ‘.’ wildcard also matches newline.
+*/
+
+CREATE  OR REPLACE TABLE demo1 (id INT, string1 VARCHAR);
+INSERT INTO demo1 (id, string1) VALUES 
+    (1, 'nevermore1, nevermore2, nevermore3.');
+
+SELECT * FROM demo1;
+
+--Search for a matching string. In this case, the string is “nevermore” followed by a single decimal digit (e.g. “nevermore1”):
+
+select id, string1,
+     regexp_substr(string1, 'nevermore\\d') AS "SUBSTRING", 
+      regexp_instr( string1, 'nevermore\\d') AS "POSITION"
+    from demo1
+    order by id;
+
+--Search for a matching string, but starting at the 5th character in the string, rather than at the 1st character in the string:
+
+select id, string1,
+      regexp_substr(string1, 'nevermore\\d', 5) AS "SUBSTRING", 
+      regexp_instr( string1, 'nevermore\\d', 5) AS "POSITION"
+    from demo1
+    order by id;
+
+--Search for a matching string, but look for the 3rd match rather than the 1st match:
+
+select id, string1,
+      regexp_substr(string1, 'nevermore\\d', 1, 3) AS "SUBSTRING", 
+      regexp_instr( string1, 'nevermore\\d', 1, 3) AS "POSITION"
+    from demo1
+    order by id;
+
+--This query is nearly identical the previous query, but this shows how to use the option parameter to indicate whether you want the position of the matching expression, or the position of the first character after the matching expression:
+
+select id, string1,
+       regexp_substr(string1, 'nevermore\\d', 1, 3) AS "SUBSTRING", 
+       regexp_instr( string1, 'nevermore\\d', 1, 3, 0) AS "START_POSITION",
+       regexp_instr( string1, 'nevermore\\d', 1, 3, 1) AS "AFTER_POSITION"
+    from demo1
+    order by id;
+
+--This query shows that if you search for an occurrence beyond the last actual occurrence, the position returned is 0:
+
+select id, string1, 
+       regexp_substr(string1, 'nevermore', 1, 4) AS "SUBSTRING",
+       regexp_instr( string1, 'nevermore', 1, 4) AS "POSITION"
+    from demo1
+    order by id;
+
+-------------------------------------------------------------------------------------------------------------------
+
+/*
+REGEXP_SUBSTR->
+Returns the substring that matches a regular expression within a string. If no match is found, returns NULL.
+*/
+
+CREATE TABLE demo3 (id INT, string1 VARCHAR);
+INSERT INTO demo3 (id, string1) VALUES 
+    -- A string with multiple occurrences of the word "the".
+    (2, 'It was the best of times, it was the worst of times.'),
+    -- A string with multiple occurrences of the word "the" and with extra
+    -- blanks between words.
+    (3, 'In    the   string   the   extra   spaces  are   redundant.'),
+    -- A string with the character sequence "the" inside multiple words 
+    -- ("thespian" and "theater"), but without the word "the" by itself.
+    (4, 'A thespian theater is nearby.');
+
+SELECT * FROM demo3;
+
+/*
+The next example looks for:
+
+the word “the”
+
+followed by one or more non-word characters
+
+followed by one or more word characters.
+
+“Word characters” include not only the letters a-z and A-Z, but also the underscore (“_”) and the decimal digits 0-9, but not whitespace, punctuation, etc.
+*/
+
+select id, string1,
+    regexp_substr(string1, 'the\\W+\\w+') as "RESULT"
+    from demo3
+    order by id;
+
+/*
+Starting from position 1 of the string, look for the 2nd occurrence of
+
+the word “the”
+
+followed by one or more non-word characters
+
+followed by one or more word characters.
+*/
+
+select id, string1,
+    regexp_substr(string1, 'the\\W+\\w+', 1, 2) as "RESULT"
+    from demo3
+    order by id;
+
+/*
+Starting from position 1 of the string, look for the 2nd occurrence of
+
+the word “the”
+
+followed by one or more non-word characters
+
+followed by one or more word characters.
+
+Rather than returning the entire match, return only the “group” (i.e. the portion of the substring that matches the part of the regular expression in parentheses). In this case, the returned value should be the word after “the”. */
 
 
+select id, string1,
+    regexp_substr(string1, 'the\\W+(\\w+)', 1, 2, 'e', 1) as "RESULT"
+    from demo3
+    order by id;
 
---How to Remove Spaces in the String in snowflake?
+CREATE TABLE demo4 (id INT, string1 VARCHAR);
+INSERT INTO demo4 (id, string1) VALUES
+    (5, 'A MAN A PLAN A CANAL');
 
-/* Nowadays, data is required everywhere. 
-Many organizations automatically capture the data using tools or machines. 
-Machines may introduce the unwanted data such as white space when it captures the actual data. 
-These junk data is of no use in reporting, thus you need to remove them before loading into the target table.
-
-In a data warehouse, you will receive data from multiple sources. 
-You may have to pre-process the data before loading it to target table. 
-The pre-process step such as removing white spaces from data is commonly used. 
-In this LECTURE we will check how to remove spaces in a string using Snowflake built-in functions. 
-
-Snowflake provides many built-in functions to remove white space or any unwanted data from a string.
-
-You can use any of the following string functions as per your requirements.
-
-Replace String Function
-TRIM Function
-Translate Function
-REGEXP_REPLACE Function */
-
-SELECT REPLACE('AB  C D ', ' ', '') as space_removed_output;
-
-SELECT TRANSLATE('AB  C D ', ' ', '') as output;
-
-/* Remove White Spaces using REGEXP_REPLACE Function
-
-The Regexp_replace remove all occurrences of white space in a string.
-For example, consider following regexp_replace example to replace all spaces in the string with nothing. */
-
-select REGEXP_REPLACE('AB  C D hello how are you hi an a n d ','( ){1,}','') as output;
-
-select regexp_replace('It was the best of times, it was the worst of times', '( ){1,}','') as "result" from dual;
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
-  
-  
-  
+select id, 
+    regexp_substr(string1, 'A\\W+(\\w+)', 1, 1, 'e', 1) as "RESULT1",
+    regexp_substr(string1, 'A\\W+(\\w+)', 1, 2, 'e', 1) as "RESULT2",
+    regexp_substr(string1, 'A\\W+(\\w+)', 1, 3, 'e', 1) as "RESULT3",
+    regexp_substr(string1, 'A\\W+(\\w+)', 1, 4, 'e', 1) as "RESULT4"
+    from demo4;
